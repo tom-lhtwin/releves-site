@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#16202A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Relevés">
+<meta name="description" content="Suivi de relevés sur site : plan, photos, stations de scan, avancement, à plusieurs et hors ligne.">
+<title>Relevés de site</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icones/icone-192.png">
+<link rel="apple-touch-icon" href="icones/icone-180.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header class="barre">
+    <button class="ico clair" id="b-menu" aria-label="Menu" data-icone="menu"></button>
+    <button class="titre-projet" id="b-projet" aria-label="Changer de projet">
+      <span id="nom-projet">…</span><small id="sous-titre"></small>
+    </button>
+    <button class="pastille-sync gris" id="b-sync" aria-label="Synchronisation"><span class="point"></span><span>Local</span></button>
+    <button class="avatar" id="b-operateur" aria-label="Opérateur">?</button>
+  </header>
+  <div class="bande-filtres" id="filtres"></div>
+
+  <main id="zone-plan">
+    <canvas id="plan" aria-label="Plan du site"></canvas>
+    <div id="vide" class="vide" hidden></div>
+    <div id="viseur" class="viseur" hidden><span></span></div>
+    <div id="barre-mode" class="barre-mode" hidden></div>
+    <div class="flottants" id="flottants" hidden>
+      <button class="rond" id="b-gps" aria-label="Ma position" data-icone="gps"></button>
+      <button class="rond" id="b-epingle" aria-label="Nouvelle épingle" data-icone="epingle"></button>
+    </div>
+    <div class="rangee-bas">
+      <button class="bouton-scan cache" id="b-scan" hidden data-icone="cible" data-taille="26">
+        <span class="bs-txt">Localiser ce scan<small id="prochain-scan">Scan_001</small></span>
+      </button>
+      <button class="rond principal" id="b-photo" aria-label="Photo géolocalisée" data-icone="camera" data-taille="28"></button>
+    </div>
+  </main>
+
+  <nav class="onglets">
+    <button data-onglet="plan" class="on" data-icone="plan"><span>Plan</span></button>
+    <button data-onglet="liste" data-icone="liste"><span>Liste</span></button>
+    <button data-onglet="avancement" data-icone="pinceau"><span>Avancement</span></button>
+    <button data-onglet="calage" data-icone="calage"><span>Calage</span></button>
+    <button data-onglet="plus" data-icone="plus"><span>Plus</span></button>
+  </nav>
+</div>
+
+<div id="voile" hidden></div>
+<section id="feuille" class="feuille" hidden aria-modal="false"><div class="poignee"></div><div id="feuille-contenu"></div></section>
+<div id="visionneuse-photo" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+
+<input type="file" id="in-photo" accept="image/*" capture="environment" hidden>
+<input type="file" id="in-galerie" accept="image/*" multiple hidden>
+<input type="file" id="in-plan" accept="image/*,application/pdf,.pdf,.svg" hidden>
+<input type="file" id="in-paquet" accept=".json,.txt,application/json,text/plain" hidden>
+<input type="file" id="in-fichiers-scan" multiple hidden>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
