@@ -1,13 +1,13 @@
 // Service worker : l'application fonctionne sans réseau une fois ouverte une première fois.
 // Changer VERSION à chaque livraison pour que les téléphones prennent la nouvelle version.
-const VERSION = 'releves-poc-6';
+const VERSION = 'releves-poc-7';
 const FICHIERS = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/app.js', 'js/avancement.js', 'js/config.js', 'js/db.js', 'js/donnees.js', 'js/exemple.js',
   'js/geo.js', 'js/images.js', 'js/metier.js', 'js/outils.js', 'js/rendu.js', 'js/synchro.js',
   'js/ui.js', 'js/visu.js',
   'icones/icone-180.png', 'icones/icone-192.png', 'icones/icone-512.png', 'icones/icone-masquable-512.png',
-  'exemple/plan-poste-exemple.svg',
+  'exemple/plan-poste-exemple.svg', 'exemple/plan-claix.jpg',
   'vendor/pdfjs/pdf.min.mjs', 'vendor/pdfjs/pdf.worker.min.mjs',
 ];
 

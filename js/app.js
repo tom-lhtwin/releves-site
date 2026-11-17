@@ -10,7 +10,7 @@ import * as S from './synchro.js';
 import * as R from './rendu.js';
 import { Visionneuse } from './visu.js';
 import { CATEGORIES, CONFIANCE, PEINTURE } from './config.js';
-import { creerExemple, listeFichiersExemple, gpsDuPlan } from './exemple.js';
+import { creerExemple, listeFichiersExemple, positionDepart, simulationParDefaut } from './exemple.js';
 import { icone, ouvrirFeuille, fermerFeuille, feuilleOuverte, toast, demander, choisir, confirmer, voirPhotos } from './ui.js';
 
 const app = {
@@ -84,11 +84,9 @@ async function surChangement(quoi) {
     const p = etat.projet;
     if (quoi === 'projet') {
       app.selection = null;
-      // Projet d'exemple : position simulée (on n'est pas sur le site fictif)
-      if (p?.exemple) {
-        const pos = (await D.lireMeta('simulationPos:' + p.id)) || gpsDuPlan(1450, 1700);
-        G.definirSimulation(pos);
-      } else G.definirSimulation((await D.lireMeta('simulationForcee', false)) ? await D.lireMeta('simulationPos:' + p?.id) : null);
+      // Position simulée : toujours pour le poste fictif, à la demande ailleurs (démonstration loin du site)
+      const forcee = p && (simulationParDefaut(p) || (await D.lireMeta('simulationForcee:' + p.id, false)));
+      G.definirSimulation(forcee ? (await D.lireMeta('simulationPos:' + p.id)) || positionDepart(p) : null);
     }
     if (quoi === 'projet' || (p && (p.planFichier !== app.planCharge || !app.img))) await chargerPlan();
   }
@@ -124,7 +122,8 @@ function majVide() {
     v.innerHTML = `<div class="carte-vide"><h2>Relevés de site</h2>
       <p>Plan, photos, stations de scan et avancement du jour, partagés entre opérateurs, même sans réseau.</p>
       <div class="pile-boutons">
-        <button class="btn principal" data-a="exemple">${icone('plan', 20)}<span>Ouvrir le projet d'exemple</span></button>
+        <button class="btn principal" data-a="exemple">${icone('plan', 20)}<span>Ouvrir le projet d'exemple (siège, Claix)</span></button>
+        <button class="btn" data-a="exemple-poste">${icone('plan', 20)}<span>Exemple : poste électrique fictif</span></button>
         <button class="btn" data-a="nouveau">${icone('dossier', 20)}<span>Nouveau projet</span></button>
         <button class="btn" data-a="recevoir">${icone('recevoir', 20)}<span>Recevoir un paquet d'un collègue</span></button>
       </div></div>`;
@@ -315,16 +314,20 @@ async function menuContextuel(p) {
   ];
   if (etat.projet.options?.scans !== false) boutons.push({ val: 'scan', libelle: 'Scan oublié, fait ici', icone: 'cible' });
   boutons.push({ val: 'coord', libelle: 'Point de calage ici (coordonnées connues)', icone: 'calage' });
-  if (app.cal.ok && G.simulationActive()) boutons.push({ val: 'sim', libelle: 'Me placer ici (position simulée)', icone: 'gps' });
+  if (app.cal.ok) boutons.push({ val: 'sim', libelle: 'Me placer ici (position simulée)', icone: 'gps' });
+  if (G.simulationActive() && !simulationParDefaut(etat.projet)) boutons.push({ val: 'vrai', libelle: 'Revenir au GPS du téléphone', icone: 'gps' });
   const c = await choisir({ titre: 'À cet endroit', boutons });
   if (c === 'epingle') creerEpingleA(p);
   else if (c === 'scan') scanOublie(p);
   else if (c === 'coord') saisirCoordonnees(p);
-  else if (c === 'sim') {
-    const g = G.planVersGps(app.cal, p.x, p.y);
-    G.definirSimulation(g);
-    await D.ecrireMeta('simulationPos:' + etat.projet.id, g);
-    toast('Position simulée déplacée ici.');
+  else if (c === 'sim') simulerA(p);
+  else if (c === 'vrai') {
+    G.definirSimulation(null);
+    app.fix = null;
+    await D.ecrireMeta('simulationForcee:' + etat.projet.id, false);
+    toast('Retour au GPS du téléphone.');
+    majBoutons();
+    app.vue.rendre();
   }
 }
 
@@ -827,6 +830,16 @@ function messageCalage() {
 // =====================================================================
 // Position du téléphone (point bleu)
 // =====================================================================
+async function simulerA(p) {
+  const g = G.planVersGps(app.cal, p.x, p.y);
+  G.definirSimulation(g);
+  await D.ecrireMeta('simulationPos:' + etat.projet.id, g);
+  await D.ecrireMeta('simulationForcee:' + etat.projet.id, true);
+  toast("Position simulée ici : photos et scans s'y placeront. Appui long › « Revenir au GPS du téléphone » pour arrêter.", { duree: 6000 });
+  majBoutons();
+  app.vue.rendre();
+}
+
 let avertiLoin = false;
 function surPosition(fix) {
   app.fix = fix;
@@ -838,7 +851,10 @@ function surPosition(fix) {
       avertiLoin = true;
       const g = G.planVersGps(cal, app.vue.w / 2, app.vue.h / 2);
       const km = G.distanceM(fix.lat, fix.lon, g.lat, g.lon) / 1000;
-      toast(`Vous êtes à ${fmtNb(km, km < 10 ? 1 : 0)} km du plan : le point bleu est hors du plan.`, { duree: 6000 });
+      toast(`Vous êtes à ${fmtNb(km, km < 10 ? 1 : 0)} km du plan : le point bleu est hors du plan.`, {
+        duree: 9000,
+        actions: [{ libelle: 'Simuler sur le plan', fn: () => simulerA(app.vue.centre()) }],
+      });
     }
     if (app.centrerAuProchainFix) {
       app.centrerAuProchainFix = false;
@@ -856,7 +872,9 @@ function basculerGPS() {
   if (G.simulationActive()) {
     const f = G.dernierePosition(1e12);
     if (f && app.cal.ok) { const p = G.gpsVersPlan(app.cal, f.lat, f.lon); app.vue.centrerSur(p.x, p.y); }
-    toast('Position simulée (projet d\'exemple). Appui long sur le plan › « Me placer ici » pour la déplacer.', { duree: 5000 });
+    toast(simulationParDefaut(etat.projet)
+      ? 'Position simulée (lieu fictif). Appui long sur le plan › « Me placer ici » pour la déplacer.'
+      : 'Position simulée. Appui long sur le plan › « Me placer ici » pour la déplacer, ou « Revenir au GPS du téléphone ».', { duree: 6000 });
     return;
   }
   if (!G.gpsPossible()) { toast('Pas de GPS disponible sur cet appareil.'); return; }
@@ -1189,7 +1207,8 @@ async function ouvrirProjets() {
       <div class="ll-txt"><b>${esc(p.nom)}</b><small>${p.exemple ? 'exemple · ' : ''}modifié ${fmtDateHeure(p.modifie_le)}${p.id === etat.projet?.id ? ' · ouvert' : ''}</small></div></button>`).join('') || '<p class="aide">Aucun projet sur ce téléphone.</p>'}</div>
     <div class="pile-boutons">
       <button class="btn principal" data-a="nouveau">${icone('dossier', 20)}<span>Nouveau projet</span></button>
-      <button class="btn" data-a="exemple">${icone('plan', 20)}<span>Créer le projet d'exemple (poste fictif)</span></button>
+      <button class="btn" data-a="exemple">${icone('plan', 20)}<span>Créer l'exemple : siège à Claix (lieu réel)</span></button>
+      <button class="btn" data-a="exemple-poste">${icone('plan', 20)}<span>Créer l'exemple : poste électrique fictif</span></button>
       <button class="btn" data-a="recevoir">${icone('recevoir', 20)}<span>Recevoir un paquet d'un collègue</span></button></div>`;
   const r = ouvrirFeuille(html, { haute: true, cle: 'projets' });
   r.onclick = async (ev) => {
@@ -1199,7 +1218,8 @@ async function ouvrirProjets() {
     const a = b.dataset.a;
     if (a === 'fermer') fermerFeuille();
     else if (a === 'nouveau') nouveauProjet();
-    else if (a === 'exemple') chargerExemple();
+    else if (a === 'exemple') chargerExemple('claix');
+    else if (a === 'exemple-poste') chargerExemple('poste');
     else if (a === 'recevoir') recevoirPaquet();
   };
 }
@@ -1219,12 +1239,14 @@ async function nouveauProjet() {
   toast('Projet créé. Importez maintenant le plan.', { actions: [{ libelle: 'Importer', fn: importerPlanUI }] });
 }
 
-async function chargerExemple() {
+async function chargerExemple(cle = 'claix') {
   fermerFeuille();
-  const t = toast('Création du projet d\'exemple…', { duree: 0 });
+  const t = toast("Création du projet d'exemple…", { duree: 0 });
   try {
-    await creerExemple();
-    t.maj('Projet d\'exemple prêt : poste fictif, 2 opérateurs, 12 scans, avancement d\'hier et d\'aujourd\'hui. La position est simulée au portail.', { duree: 8000 });
+    await creerExemple(cle);
+    t.maj(cle === 'claix'
+      ? "Exemple prêt : abords du siège à Claix (photo aérienne IGN), 2 opérateurs, 12 scans, avancement d'hier et d'aujourd'hui. Sur place, le GPS du téléphone fonctionne ; ailleurs, appui long › « Me placer ici »."
+      : "Exemple prêt : poste fictif, 2 opérateurs, 12 scans, avancement d'hier et d'aujourd'hui. La position est simulée au portail.", { duree: 9000 });
   } catch (e) {
     console.error(e);
     t.maj('Échec : ' + esc(e.message), { duree: 8000 });
@@ -1409,7 +1431,8 @@ function brancherBoutons() {
   $('#voile').addEventListener('click', () => { if (!feuilleOuverte('operateur') || etat.operateur) fermerFeuille(); });
   $('#vide').addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]')?.dataset.a;
-    if (a === 'exemple') chargerExemple();
+    if (a === 'exemple') chargerExemple('claix');
+    else if (a === 'exemple-poste') chargerExemple('poste');
     else if (a === 'nouveau') nouveauProjet();
     else if (a === 'recevoir') recevoirPaquet();
     else if (a === 'plan') importerPlanUI();
