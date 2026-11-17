@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne sans réseau une fois ouverte une première fois.
 // Changer VERSION à chaque livraison pour que les téléphones prennent la nouvelle version.
-const VERSION = 'releves-poc-5';
+const VERSION = 'releves-poc-6';
 const FICHIERS = [
   './', 'index.html', 'css/app.css', 'manifest.webmanifest',
   'js/app.js', 'js/avancement.js', 'js/config.js', 'js/db.js', 'js/donnees.js', 'js/exemple.js',

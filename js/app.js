@@ -46,10 +46,11 @@ async function demarrer() {
   const id = await D.lireMeta('projetCourant');
   if (id) await D.ouvrirProjet(id);
   else await surChangement('projet');
-  if (!etat.operateur) await choisirOperateur(true);
-  S.configurer();
+  // Mise en cache hors ligne et synchro dès l'ouverture, sans attendre le choix de l'opérateur
   enregistrerServiceWorker();
   navigator.storage?.persist?.().catch(() => {});
+  S.configurer();
+  if (!etat.operateur) await choisirOperateur(true);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') G.arreterSuivi();
     else if (app.suivreGPS) G.demarrerSuivi();
